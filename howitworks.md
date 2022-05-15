@@ -79,7 +79,7 @@ command, using colons as usual.
 
 ## Initialisation code
 
-The initialisation code now runs.  It is split into two parts.
+The initialisation code [src/init.s](src/init.s) now runs.  It is split into two parts.
 The low half of the page contains some one-off initialisation
 code, while the upper half of the page contains permanent code
 that will remain resident from now on.
