@@ -96,7 +96,7 @@ subroutine, which waits for the server to send some new code to
 run.  Most code that gets uploaded ends by calling this function
 again to allow the server to direct what happens next.
 
-In this case though, the code that gets loaded ([src/message.s])
+In this case though, the code that gets loaded ([src/message.s](src/message.s))
 just prints a message and then returns control to the caller on
 the BBC end, which is the BASIC prompt.
 
@@ -107,14 +107,14 @@ present all the time, but there isn't space for it in the shared
 area - so it lives in the low half of the page, and gets swapped
 in and out.  Any time we return control to the system, we must
 make sure the CLI handler is loaded.  This is usually done by
-loading [src/main.s], which includes a copy of the CLI handler
+loading [src/main.s](src/main.s), which includes a copy of the CLI handler
 and a few ways to return control to the system.
 
 ## Filing system APIs
 
 When the CLI handler detects the \*S command, it sends a command
 with code '\*' to the server, and the server sends the code for
-[src/activate.s].  This is a fairly standard filing system
+[src/activate.s](src/activate.s).  This is a fairly standard filing system
 activation routine, which performs some notifications and
 overwrites the filing vectors with its own ones.
 
@@ -127,7 +127,7 @@ which API was called and what the register values were.
 The filing system APIs vary quite a bit regarding what data
 needs to be sent.  OSFILE always requires an 18-byte parameter
 block and a filename to be sent, so that's packaged up in
-[src/osfile.s].  FSC is not so simple though - the action to
+[src/osfile.s](src/osfile.s).  FSC is not so simple though - the action to
 take varies a lot depending on context, so the server makes more
 decisions based on the value in the A register, and asks the
 client to send specific memory blocks such as filenames using
@@ -137,10 +137,10 @@ the client.
 ## Messages and errors
 
 If the server needs the client to display a message, or emit an
-error, it loads [src/message.s] or [src/error.s].  The latter in
+error, it loads [src/message.s](src/message.s) or [src/error.s](src/error.s).  The latter in
 particular is a bit special because it doesn't get a chance to
-load [src/main.s] as usual after it runs - it's going to trigger
+load [src/main.s](src/main.s) as usual after it runs - it's going to trigger
 a BRK, and the language is going to pick that up straight away.
-So [src/error.s] needs to also contain core functionality like
+So [src/error.s](src/error.s) needs to also contain core functionality like
 the CLI handler.
 
