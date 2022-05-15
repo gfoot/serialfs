@@ -13,6 +13,7 @@ import os
 import re
 import serial
 import subprocess
+import sys
 import time
 
 loglevel = 2
@@ -624,7 +625,12 @@ def assemble(inputfilename, outputfilename, labelfilename=None, impfilename=None
 	cmd = ["xa", inputfilename, "-o", outputfilename]
 	if labelfilename:
 		cmd.extend(["-l", labelfilename])
-	result = subprocess.run(cmd, check=True)
+
+	try:
+		result = subprocess.run(cmd, check=True)
+	except subprocess.CalledProcessError:
+		print("\nAssembly of %s failed" % inputfilename)
+		sys.exit(1)
 
 	if labelfilename and impfilename:
 		cmd = ["python", "genimports.py", labelfilename, impfilename]
