@@ -78,6 +78,6 @@ deep rabbit hole though.
 
 ## How it works
 
-See [howitworks.md].
+See [How It Works](howitworks.md).
 
 
