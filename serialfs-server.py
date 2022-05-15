@@ -16,10 +16,13 @@ import subprocess
 import sys
 import time
 
-loglevel = 1
 
+# Actually defined in init.s, but used here to check overlays
+# are not too big.
 himem = 0x80
 
+
+loglevel = 1
 
 def log(level, *args):
 	if level <= loglevel:
