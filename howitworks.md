@@ -89,7 +89,12 @@ are used later on by all sorts of other code, such as
 subroutines to send and receive bytes, and especially a
 subroutine to download new code blocks.
 
-The initialisation code mostly performs some initial setup,
+The first thing the initialisation code does is inform the server that it is 
+running, by sending an 'I' byte.  Then it changes the serial settings to 
+76800 baud, and the server does the same.  This speed seems very reliable so 
+long as the client is actively waiting when data comes from the server.
+
+After that the initialisation code performs some more initial setup,
 installing a CLI handler (for star commands, so that it
 can respond to \*S), and ends by executing the ser\_recv\_code
 subroutine, which waits for the server to send some new code to
