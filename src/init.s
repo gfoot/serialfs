@@ -1,4 +1,5 @@
 org = $a00
+himem = $a80
 
 cliv = $208
 
@@ -27,25 +28,44 @@ acia_write = $fe09
 
 init
 .(
+	; Send a byte so the server knows we're running
+	lda #'I'
+	jsr ser_send_byte
+
+	; Wait a little before upgrading the speed
+	ldx #0
+	ldy #$80
+delay
+	inx
+	bne delay
+	iny
+	bne delay
+
+	; Upgrade connection speed
+	lda #7 : ldx #8 : jsr $fff4               ; 19200 baud
+	lda #8 : ldx #8 : jsr $fff4               ; 19200 baud
+	lda #156 : ldx #1 : ldy #252 : jsr $fff4  ; x4 speed
+
+	; Register CLI handler
 	php
 	sei
-
+	
 	ldy cliv : sty oldcliv
 	ldy cliv+1 : sty oldcliv+1 
 
 	jsr cli_init
 
 	plp
-	rts
+
+	jmp ser_recv_code
 .)
 
 
 #include "src/frag/clihandler.s"
 
 
-	.dsb org+$80-*, $00
-
-&himem
+#print himem-*
+	.dsb himem-*, $00
 
 ; Send the registers and command ID, then wait for code 
 ; from the remote host to determine what to do next.
@@ -81,6 +101,9 @@ init
 	; Disable interrupts so that we don't miss any bytes
 	php
 	sei
+
+	; Tell server we're ready to receive
+	jsr ser_send_byte
 
 	; Read number of bytes to receive
 	jsr ser_recv_byte

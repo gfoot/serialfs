@@ -16,7 +16,10 @@ import subprocess
 import sys
 import time
 
-loglevel = 2
+loglevel = 1
+
+himem = 0x80
+
 
 def log(level, *args):
 	if level <= loglevel:
@@ -116,8 +119,14 @@ def update_params_from_inf(param_block, filename):
 
 # Send some code for the client to execute, assuming it's 
 # expecting it
-def send_code(code):
-	log(2, "Sending code")
+def send_code(code, debuginfo=""):
+	log(2, "Sending code%s" % ("" if not debuginfo else ": %s" % debuginfo))
+
+	log(3, "    send_code: waiting for client")
+	while not ser.read(1):
+		pass
+
+	log(3, "    send_code: sending")
 	hexdump(code)
 	ser.write(bytes([len(code)]))
 	ser.write(reversed(code))
@@ -127,7 +136,7 @@ def send_code(code):
 # so long as the CLI handler hasn't already been overwritten.
 def send_code_loadregs(a, x, y):
 	code = [ 0xa9, a, 0xa2, x, 0xa0, y, 0x60 ]
-	send_code(code)
+	send_code(code, "loadregs")
 
 # Send a specific file of compiled continuation code, first 
 # applying a list of patches to e.g. apply register values
@@ -140,9 +149,9 @@ def send_code_fromfile(filename, *patches):
 	for addr,value in patches:
 		code[addr] = value
 
-	assert len(code) <= 0x80, "Code from %s is too large (%d bytes)" % (filename, len(code))
+	assert len(code) <= himem, "Code from %s is too large (%d bytes)" % (filename, len(code))
 
-	send_code(bytes(code))
+	send_code(bytes(code), filename)
 
 
 # Send the "main" code, which restores the system to the
@@ -218,6 +227,38 @@ def send_code_sendstring(addr, maxlength):
 		s = s + chr(b)
 	return s
 
+# Send code to cause the client to print a message which is 
+# embedded in the code
+def send_code_printmessage(message):
+	with open("data/message.x", "rb") as fp:
+		code = list(fp.read())
+		fp.close()
+
+	codelen = len(code)
+	capacity = himem - len(code)
+	for pos in range(0, len(message), capacity):
+		submessage = message[pos:pos+capacity]
+		code[1] = len(submessage)
+		code[codelen:] = s2b(submessage[::-1])
+
+		assert len(code) <= himem, "Code with message is too large (%d bytes)" % (filename, len(code))
+
+		send_code(bytes(code), "message")
+
+# Send code to cause a BRK error on the client
+def send_code_error(errno, message):
+	with open("data/error.x", "rb") as fp:
+		code = list(fp.read())
+		fp.close()
+
+	code.append(errno)
+	code.extend(s2b(message))
+	code.append(0)
+
+	assert len(code) <= himem, "Code with error message is too large (%d bytes)" % (filename, len(code))
+
+	send_code(bytes(code), "error")
+
 
 # Bootstrap the client.  On entry the client is ready for
 # BASIC commands, and output is disabled, so none of this
@@ -254,7 +295,7 @@ def send_init_program():
 	# Check it's not too big
 	num = len(code)
 	if num > 255:
-		print("Code too large (%d > %d)<n" % (num, 255))
+		print("Code too large (%d > %d)" % (num, 255))
 		exec(':'.join([
 			'OSCLI("FX3,0")',    # Output to VDU
 			'OSCLI("FX2,0")',    # Input from keyboard only
@@ -283,9 +324,25 @@ def send_init_program():
 		'CALL&%X' % addr     # Execute code
 	]))
 
-	# Expecting no output here unless it was enabled for 
-	# debugging purposes
-	printoutput()
+	# Wait for init program to start
+	log(1, "Waiting...")
+	while True:
+		x = ser.read(1)
+		if x == b'I':
+			break
+		if x:
+			print("unexpected:",x)
+
+	# Change rate to match settings sent to client above
+	# (19200 baud with x4 multiplier)
+	log(1, "Upgrading speed to 76800 baud")
+	ser.baudrate = 76800
+
+	# Send code to print startup message
+	send_code_printmessage("\x0aUse *S to select SerialFS\x0a\x0d")
+
+	# Send main code
+	send_code_main(0, 0, 0)
 
 
 # Receive a command from the client and send some continuation
@@ -296,7 +353,7 @@ def send_init_program():
 # registers to choose between functions
 def do_command():
 	a,x,y,cmd = ser.read(4)
-	log(2, "Received command %02x, regs %02x %02x %02x" % (cmd, a, x, y))
+	log(3, "Received command %02x, regs %02x %02x %02x" % (cmd, a, x, y))
 
 	# The filing system command IDs are the low bytes of the
 	# return address to whichever of our handlers was called
@@ -319,7 +376,8 @@ def do_command():
 	}
 
 	if cmd not in handlers:
-		print("   Unrecognized command")
+		print("Invalid command code")
+		send_code_error(224, "SerialFS: Invalid command code")
 		return
 
 	# Chain to the appropriate handler
@@ -346,7 +404,7 @@ def do_file(a, x, y):
 		0x05: do_file_attr
 	}
 	if a not in handlers:
-		print("    Unsupported OSFILE &%02x" % a)
+		log(1, "    Unsupported OSFILE &%02x" % a)
 		send_code_main(a, x, y)
 	else:
 		handlers[a](param_block, filename, a, x, y)
@@ -370,7 +428,7 @@ def do_file_load(param_block, filename, a, x, y):
 			content = fp.read()
 			fp.close()
 	except FileNotFoundError:
-		send_code_main(0, x, y) # fixme: should give error?
+		send_code_error(214, "File not found")
 		return
 
 	hexdump(content)
@@ -574,6 +632,7 @@ def do_fsc_cat(filename, a, x, y):
 def do_activate(a, x, y):
 	log(1, "    *S (activate)")
 	send_code_fromfile("data/activate.x")
+	send_code_main(a, x, y)
 
 
 # Client requested to be sent the main code
@@ -651,15 +710,19 @@ for f in os.listdir("src"):
 # 8-N-2 maybe being more reliable at that speed.  Receiving at
 # higher speeds doesn't work because of the way the ACIA is 
 # wired in the Beeb, but transmitting at higher speeds might 
-# still be possible.
+# also be possible.  Not sure if Python Serial supports 
+# asymmetric settings.
 ser = serial.Serial("/dev/ttyUSB0", 9600, 8, "N", 1, timeout=1)
 
 
 while True:
 
+	# Reset to slow speed for initial connection
+	ser.baudrate = 76800
+
 	# Wait for a connection
-	print("")
-	print("Listening")
+	log(0, "")
+	log(0, "Listening")
 	while not ser.dsr:
 		time.sleep(0.1)
 
@@ -667,7 +730,8 @@ while True:
 	# Wait until we see a prompt characte (">"), and 
 	# occasionally send a command to enable serial output
 	# until it appears.
-	print("Line open")
+	log(0, "Line open")
+	attempts = 0
 	while ser.dsr:
 		if not ser.in_waiting:
 			# Send the beeb a command to enable serial output.
@@ -675,39 +739,75 @@ while True:
 			# While we send the command though, we cause the VDU
 			# to erase each character so that it doesn't show up 
 			# for the user.
-			print("Initializing link")
-			l = bytes(''.join([char+'\010 \177' for char in '*FX3,3']), "ASCII")
-			# Also send a message to the VDU but erase it from the
+			log(1, "Initializing link")
+
+			# Printer off, clear input, erase prompt
+			ser.write(b'\x03\x15\x08 \x7f')
+
+			# Send a message to the VDU but erase it from the
 			# input command buffer
-			m = b'\010\012\012Serial interface starting...\012\025'
-			ser.write(m+l+b'\r')
+			ser.write(b'\r\x08Initialising SerialFS...\x0a\x15')
+
+			# Turn on serial output and turn off VDU output,
+			# and hide the commands by erasing the characters
+			s = ''.join([char+'\x08 \x7f' for char in '*FX3,3'])
+			ser.write(s2b(s)+b'\x0b\r')
+
+			attempts = attempts+1
 
 		# See if we have any output from the beeb yet
 		x = ser.read(1)
 		if x:
-			log(2, x)
+			log(3, x)
 			while ser.in_waiting:
-				log(2, ser.in_waiting)
+				log(3, ser.in_waiting)
 				x = ser.read(1)
-				log(2, x, ser.in_waiting)
+				log(3, x, ser.in_waiting)
 
 			# If we got the prompt, and nothing after it, 
 			# then we should be OK to proceed
 			if x == b'>':
 				break
 
+		if attempts % 2 == 0:
+			# Maybe it's stuck in a high-speed mode, see if we can help it out
+			baudrates = [9600, 19200, 78600, 38400, 4800, 2400, 1200, 600, 300, 150, 75]
+			ser.baudrate = baudrates[(attempts // 2) % len(baudrates)]
+			log(2, "    Trying to reset client from %d baud" % ser.baudrate)
+
+			s = b''.join([
+				b'         ',        # Flush out VDU23
+				b'\x03\x15',         # Printer off, clear input
+				b'OSCLI("FX7,7"):',  # Receive rate to 9600
+				b'OSCLI("FX8,7"):',  # Transmit rate to 9600
+				b'*FX156,2,252\r'    # Multiplier to x1
+			])
+
+			# Write characters slowly so that even at high baud
+			# the beeb has time to process them
+			for ch in s:
+				time.sleep(0.01)
+				ser.write(bytes([ch]))
+
+			time.sleep(0.1)
+			ser.baudrate = 9600
+
 	# Assuming DSR is still active, we are connected and have
 	# established reliable comms with the beeb
 	if ser.dsr:
-		print("Link active")
+		log(0, "Link active")
 
 		# Disable serial output now, and also disable VDU output
-		exec("*FX3,2")
+		# unless log level is high
+		if loglevel >= 2:
+			exec("*FX3,0")
+		else:
+			exec("*FX3,2")
 
 		# Bootstrap the client
 		send_init_program()
 
-		print("Ready")
+		log(0, "Ready")
 
 		# In general operation, so long as the connection is
 		# not dropped, respond to commands
@@ -720,5 +820,5 @@ while True:
 
 	# If DSR goes high then we lost connection, so go back 
 	# to the beginning
-	print("Connection lost")
+	log(0, "Connection lost")
 

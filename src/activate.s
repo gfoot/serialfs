@@ -6,10 +6,7 @@
 	; Activate the filing system
 	jsr activate
 
-	; Signal to reload the main code afterwards
-	lda #'M'
-	pha : pha
-	jmp send_cmd
+	jmp ser_recv_code
 
 activate
 .(
