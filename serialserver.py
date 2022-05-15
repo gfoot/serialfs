@@ -12,9 +12,10 @@
 import os
 import re
 import serial
+import subprocess
 import time
 
-loglevel = 1
+loglevel = 2
 
 def log(level, *args):
 	if level <= loglevel:
@@ -433,7 +434,7 @@ def do_file_save(param_block, filename, a, x, y):
 	# Update the parameter block as the field meanings are
 	# different after a SAVE to what they are beforehand
 	write32(param_block, 10, length)
-	write32(param_block, 14, 0x77) ; access permissions
+	write32(param_block, 14, 0x77) # access permissions
 
 	hexdump(param_block)
 
@@ -586,19 +587,22 @@ def do_main(a, x, y):
 # only if output has been enabled for debugging, as it's 
 # usually turned off
 def printoutput():
+	if not ser.in_waiting:
+		return
+
 	x = ser.read(1)
 	
 	if x:
 		while ser.in_waiting:
 			x += ser.read(ser.in_waiting)
 
-		s = x.decode("cp437")
+		s = x.decode("iso-8859-1")
 		lines = [l+'\r' for l in s.split('\r')]
 		lines[-1] = lines[-1][:-1]
 		
 		for line in lines:
 			if line:
-				log(2, repr(" R: "+line))
+				log(3, repr(" R: "+line))
 
 
 # Print a hex dump of a data block for debugging
@@ -612,6 +616,27 @@ def hexdump(bb):
 			t += " " if ij >= len(bb) else "." if bb[ij] < 32 or bb[ij] > 126 else chr(bb[ij])
 
 		log(3, "  ",s,t)
+
+
+def assemble(inputfilename, outputfilename, labelfilename=None, impfilename=None):
+	print("Assembling %s" % outputfilename)
+
+	cmd = ["xa", inputfilename, "-o", outputfilename]
+	if labelfilename:
+		cmd.extend(["-l", labelfilename])
+	result = subprocess.run(cmd, check=True)
+
+	if labelfilename and impfilename:
+		cmd = ["python", "genimports.py", labelfilename, impfilename]
+		result = subprocess.run(cmd, check=True)
+
+
+assemble("src/init.s", "data/init.x", "gen/init.labels", "gen/init.imp")
+
+for f in os.listdir("src"):
+	if f.endswith(".s") and f != "init.s":
+		g = f[:-2]
+		assemble("src/"+f, "data/"+g+".x")
 
 
 # Default serial settings on the beeb seem to be 9600 8-N-1
@@ -638,6 +663,19 @@ while True:
 	# until it appears.
 	print("Line open")
 	while ser.dsr:
+		if not ser.in_waiting:
+			# Send the beeb a command to enable serial output.
+			# *FX3,3 also disables VDU output, for tidiness.
+			# While we send the command though, we cause the VDU
+			# to erase each character so that it doesn't show up 
+			# for the user.
+			print("Initializing link")
+			l = bytes(''.join([char+'\010 \177' for char in '*FX3,3']), "ASCII")
+			# Also send a message to the VDU but erase it from the
+			# input command buffer
+			m = b'\010\012\012Serial interface starting...\012\025'
+			ser.write(m+l+b'\r')
+
 		# See if we have any output from the beeb yet
 		x = ser.read(1)
 		if x:
@@ -652,18 +690,6 @@ while True:
 			if x == b'>':
 				break
 
-		# Send the beeb a command to enable serial output.
-		# *FX3,3 also disables VDU output, for tidiness.
-		# While we send the command though, we cause the VDU
-		# to erase each character so that it doesn't show up 
-		# for the user.
-		print("Initializing link")
-		l = bytes(''.join([char+'\010 \177' for char in '*FX3,3']), "ASCII")
-		# Also send a message to the VDU but erase it from the
-		# input command buffer
-		m = b'\010\012\012Serial interface starting...\012\025'
-		ser.write(m+l+b'\r')
-
 	# Assuming DSR is still active, we are connected and have
 	# established reliable comms with the beeb
 	if ser.dsr:
@@ -674,6 +700,8 @@ while True:
 
 		# Bootstrap the client
 		send_init_program()
+
+		print("Ready")
 
 		# In general operation, so long as the connection is
 		# not dropped, respond to commands

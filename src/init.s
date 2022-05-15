@@ -195,7 +195,7 @@ top
 &oldcliv
 	.word org
 
-#print *-org
+#print *-org-256
 
 .)
 

@@ -58,3 +58,4 @@ fsvectorsend
 
 .)
 
+#print himem-*

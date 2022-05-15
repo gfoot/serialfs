@@ -37,3 +37,4 @@ do_exec
 
 .)
 
+#print himem-*
