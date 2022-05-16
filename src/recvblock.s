@@ -12,6 +12,8 @@ addr
 	.word 0
 length
 	.word 0
+blocksize
+	.byte 0
 
 start
 	; Transfer address to zero page
@@ -34,13 +36,58 @@ noincrement
 	ora zp_block_len+1
 	beq done
 
+	; Initialise Y to trigger the start of a new block
+	ldy #0
+
 	php
 	sei
 
-	; OK, we're ready
-	jsr ser_send_byte
+	; Set ~RTS on to prevent data flow
+	;lda #156 : ldx #$55 : ldy #0 : jsr $fff4
+	lda #$55 : sta acia_control
+
+	; XOFF
+	lda #21 : jsr ser_send_byte
+
+	; Wait a bit
+.(
+	ldx #0
+delay
+	iny
+	bne delay
+	inx
+	bne delay
+.)
 
 loop
+	; Start of new block?
+	cpy #0
+	bne receive
+
+	; Wait a bit
+.(
+	ldx #$f0
+delay
+	iny
+	bne delay
+	inx
+	bne delay
+.)
+
+	; Read up to 'blocksize' more bytes before the next break
+	ldy blocksize
+
+	; Disable interrupts
+	php : sei
+
+	; XON
+	lda #23 : jsr ser_send_byte
+	
+	; Set ~RTS off, to allow data flow
+	;lda #156 : ldx #$15 : ldy #0 : jsr $fff4
+	lda #$15 : sta acia_control
+
+receive
 	; Read a byte
 	jsr ser_recv_byte
 
@@ -55,6 +102,21 @@ loop
 	beq done
 nocarry
 
+	; Is it time for a little break?
+	dey
+	bne nextbyte
+	
+	; XOFF
+	lda #21 : jsr ser_send_byte
+	
+	; Set ~RTS on to prevent data flow
+	;lda #156 : ldx #$55 : ldy #0 : jsr $fff4
+	lda #$55 : sta acia_control
+
+	; Re-enable interrupts briefly
+	plp
+
+nextbyte
 	; Advance to the next byte
 	inc zp_block_ptr
 	bne loop
@@ -62,6 +124,7 @@ nocarry
 	jmp loop
 
 done
+	plp
 	plp
 	jmp ser_recv_code
 .)
