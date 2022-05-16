@@ -342,7 +342,10 @@ def send_init_program():
 	ser.baudrate = 76800
 
 	# Send code to print startup message
-	send_code_printmessage("\x0aUse *S to select SerialFS\x0a\x0d")
+	send_code_printmessage("\x0aSerialFS active\x0a\x0d")
+
+	# Activate SerialFS
+	send_code_fromfile("data/activate.x")
 
 	# Send main code
 	send_code_main(0, 0, 0)
@@ -684,7 +687,7 @@ def hexdump(bb):
 def assemble(inputfilename, outputfilename, labelfilename=None, impfilename=None):
 	print("Assembling %s" % outputfilename)
 
-	cmd = ["xa", inputfilename, "-o", outputfilename]
+	cmd = ["xa", inputfilename, "-o", outputfilename, "-M"]
 	if labelfilename:
 		cmd.extend(["-l", labelfilename])
 
