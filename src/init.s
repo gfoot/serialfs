@@ -1,5 +1,5 @@
 org = $a00
-himem = $a80
+himem = $a9c
 
 cliv = $208
 
@@ -45,6 +45,9 @@ delay
 	lda #7 : ldx #8 : jsr $fff4               ; 19200 baud
 	lda #8 : ldx #8 : jsr $fff4               ; 19200 baud
 	lda #156 : ldx #1 : ldy #252 : jsr $fff4  ; x4 speed
+
+	; Turn off fake ACIA interrupts
+	lda #232 : ldx #0 : ldy #0 : jsr $fff4
 
 	; Register CLI handler
 	php

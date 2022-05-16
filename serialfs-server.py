@@ -19,7 +19,7 @@ import time
 
 # Actually defined in init.s, but used here to check overlays
 # are not too big.
-himem = 0x80
+himem = 0x9c
 
 
 loglevel = 1
@@ -191,13 +191,7 @@ def send_code_recv(addr, length, data):
 
 	else:
 
-		#  4 => 85    seconds (5500?)
-		#  8 => 41    seconds (2599)
-		# 16 => 20.83 seconds (1367)
-		# 32 => 10.59 seconds (703)
-
 		blocksize = 32
-
 
 		send_code_fromfile("data/recvblock.x",
 			(3, addr & 0xff),
@@ -210,10 +204,10 @@ def send_code_recv(addr, length, data):
 			pass
 
 		for offset in range(0, length, blocksize):
-			#while ser.dsr:#read(1):
-			#	pass
-			#while not ser.dsr:#read(1):
-			#	pass
+			while ser.dsr:#read(1):
+				pass
+			while not ser.dsr:#read(1):
+				pass
 			
 			ser.write(data[offset:offset+blocksize])
 			
@@ -734,7 +728,7 @@ for f in os.listdir("src"):
 # wired in the Beeb, but transmitting at higher speeds might 
 # also be possible.  Not sure if Python Serial supports 
 # asymmetric settings.
-ser = serial.Serial("/dev/ttyUSB0", 9600, 8, "N", 1, timeout=1, xonxoff=True)
+ser = serial.Serial("/dev/ttyUSB0", 9600, 8, "N", 1, timeout=1)
 
 
 while True:

@@ -14,6 +14,8 @@ length
 	.word 0
 blocksize
 	.byte 0
+blocksizerem
+	.byte 0
 
 start
 	; Transfer address to zero page
@@ -39,12 +41,8 @@ noincrement
 	; Initialise Y to trigger the start of a new block
 	ldy #0
 
-	php
-	sei
-
 	; Set ~RTS on to prevent data flow
-	;lda #156 : ldx #$55 : ldy #0 : jsr $fff4
-	lda #$55 : sta acia_control
+	ldx #$55 : jsr setaciacontrol
 
 	; XOFF
 	lda #21 : jsr ser_send_byte
@@ -59,33 +57,22 @@ delay
 	bne delay
 .)
 
-loop
-	; Start of new block?
-	cpy #0
-	bne receive
-
-	; Wait a bit
-.(
-	ldx #$f0
-delay
-	iny
-	bne delay
-	inx
-	bne delay
-.)
-
-	; Read up to 'blocksize' more bytes before the next break
-	ldy blocksize
+	sty blocksizerem
 
 	; Disable interrupts
 	php : sei
 
-	; XON
-	lda #23 : jsr ser_send_byte
-	
 	; Set ~RTS off, to allow data flow
-	;lda #156 : ldx #$15 : ldy #0 : jsr $fff4
-	lda #$15 : sta acia_control
+	ldx #$15 : jsr setaciacontrol
+
+loop
+	; Start of new block?
+	ldy blocksizerem
+	bne receive
+
+	; Read up to 'blocksize' more bytes before the next break
+	ldy blocksize
+	sty blocksizerem
 
 receive
 	; Read a byte
@@ -95,6 +82,9 @@ receive
 	ldx #0
 	sta (zp_block_ptr,x)
 
+	; Set ~RTS on to prevent data flow
+	ldx #$55 : jsr setaciacontrol
+
 	; Check if there's more to read
 	dec zp_block_len
 	bne nocarry
@@ -103,18 +93,20 @@ receive
 nocarry
 
 	; Is it time for a little break?
-	dey
+	dec blocksizerem
 	bne nextbyte
 	
-	; XOFF
-	lda #21 : jsr ser_send_byte
-	
-	; Set ~RTS on to prevent data flow
-	;lda #156 : ldx #$55 : ldy #0 : jsr $fff4
-	lda #$55 : sta acia_control
-
 	; Re-enable interrupts briefly
 	plp
+	php : sei
+
+	; Set ~RTS off, to allow data flow
+	;
+	; We do this significantly in advance because it actually
+	; takes quite a while for the remote side to respond.  So
+	; long as we still get to the ser_recv_byte above before
+	; the data arrives, all is good.
+	ldx #$15 : jsr setaciacontrol
 
 nextbyte
 	; Advance to the next byte
@@ -124,9 +116,16 @@ nextbyte
 	jmp loop
 
 done
-	plp
+	; Set ~RTS off so that the server doesn't hang up
+	ldx #$15 : jsr setaciacontrol
 	plp
 	jmp ser_recv_code
+
+
+setaciacontrol
+	lda #156
+	ldy #0
+	jmp $fff4
 .)
 
 #print himem-*
