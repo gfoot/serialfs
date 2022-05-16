@@ -41,13 +41,14 @@ noincrement
 	; Initialise Y to trigger the start of a new block
 	ldy #0
 
-	; Set ~RTS on to prevent data flow
+	; Set ~RTS on, to prepare for turning it off again as a
+	; signal to the server
 	ldx #$55 : jsr setaciacontrol
 
 	; XOFF
 	lda #21 : jsr ser_send_byte
 
-	; Wait a bit
+	; Wait a bit so the server can see that ~RTS is on
 .(
 	ldx #0
 delay
@@ -57,21 +58,25 @@ delay
 	bne delay
 .)
 
+	; Start with this negative
+	dey
 	sty blocksizerem
 
 	; Disable interrupts
 	php : sei
 
-	; Set ~RTS off, to allow data flow
+	; Set ~RTS off, to signal the server to send a data block
 	ldx #$15 : jsr setaciacontrol
 
 loop
-	; Start of new block?
+	; Start of new block if blocksizerem is negative
 	ldy blocksizerem
-	bne receive
+	bpl receive
 
-	; Read up to 'blocksize' more bytes before the next break
+	; Read up to 'blocksize' more bytes before the next break.
+	; 'blocksizerem' counts from blocksize-1 to -1.
 	ldy blocksize
+	dey
 	sty blocksizerem
 
 receive
@@ -82,25 +87,20 @@ receive
 	ldx #0
 	sta (zp_block_ptr,x)
 
-	; Set ~RTS on to prevent data flow
-	ldx #$55 : jsr setaciacontrol
-
-	; Check if there's more to read
-	dec zp_block_len
-	bne nocarry
-	dec zp_block_len+1
-	beq done
-nocarry
-
-	; Is it time for a little break?
+	; Was that the second-last byte of the block?
 	dec blocksizerem
-	bne nextbyte
+	bmi nextbyte         ; last byte
+	bne notendofblock    ; neither
+
+	; If it was the second-last byte of the block...
 	
-	; Re-enable interrupts briefly
+	; Re-enable interrupts briefly - this is ok because there's
+	; only one more byte to read, so we don't need to read it 
+	; urgently, as it won't get overwritten if we don't
 	plp
 	php : sei
 
-	; Set ~RTS off, to allow data flow
+	; Set ~RTS off, to signal the server to send the next block
 	;
 	; We do this significantly in advance because it actually
 	; takes quite a while for the remote side to respond.  So
@@ -108,7 +108,20 @@ nocarry
 	; the data arrives, all is good.
 	ldx #$15 : jsr setaciacontrol
 
+	bne nextbyte   ; always taken
+
+notendofblock
+	; Set ~RTS on, to tell the server we're reading the block
+	ldx #$55 : jsr setaciacontrol
+
 nextbyte
+	; Check if there's more to read
+	dec zp_block_len
+	bne nocarry
+	dec zp_block_len+1
+	beq done
+nocarry
+
 	; Advance to the next byte
 	inc zp_block_ptr
 	bne loop
