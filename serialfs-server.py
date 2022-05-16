@@ -721,7 +721,7 @@ ser = serial.Serial("/dev/ttyUSB0", 9600, 8, "N", 1, timeout=1)
 while True:
 
 	# Reset to slow speed for initial connection
-	ser.baudrate = 76800
+	ser.baudrate = 9600
 
 	# Wait for a connection
 	log(0, "")
