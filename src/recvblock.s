@@ -16,6 +16,8 @@ blocksize
 	.byte 0
 blocksizerem
 	.byte 0
+aciacontrolbyte
+	.byte 0
 
 start
 	; Transfer address to zero page
@@ -41,14 +43,13 @@ noincrement
 	; Initialise Y to trigger the start of a new block
 	ldy #0
 
-	; Set ~RTS on, to prepare for turning it off again as a
-	; signal to the server
-	ldx #$55 : jsr setaciacontrol
+	; ~RTS starts off
+	ldx #$15 : jsr setaciacontrol
 
 	; XOFF
 	lda #21 : jsr ser_send_byte
 
-	; Wait a bit so the server can see that ~RTS is on
+	; Wait a bit so the server can see the current ~RTS state
 .(
 	ldx #0
 delay
@@ -58,15 +59,15 @@ delay
 	bne delay
 .)
 
-	; Start with this negative
+	; Start with this negative to signal end of block
 	dey
 	sty blocksizerem
 
 	; Disable interrupts
 	php : sei
 
-	; Set ~RTS off, to signal the server to send a data block
-	ldx #$15 : jsr setaciacontrol
+	; Signal the server to send a data block
+	jsr togglerts
 
 loop
 	; Start of new block if blocksizerem is negative
@@ -89,8 +90,7 @@ receive
 
 	; Was that the second-last byte of the block?
 	dec blocksizerem
-	bmi nextbyte         ; last byte
-	bne notendofblock    ; neither
+	bne notendofblock
 
 	; If it was the second-last byte of the block...
 	
@@ -100,21 +100,27 @@ receive
 	plp
 	php : sei
 
-	; Set ~RTS off, to signal the server to send the next block
+	; Toggle ~RTS to signal the server to send the next block
 	;
 	; We do this significantly in advance because it actually
 	; takes quite a while for the remote side to respond.  So
 	; long as we still get to the ser_recv_byte above before
 	; the data arrives, all is good.
-	ldx #$15 : jsr setaciacontrol
-
-	bne nextbyte   ; always taken
+	;
+	; So after this happens, we go around and read the final 
+	; byte of the previous block, process it, and then loop
+	; again to start the next block, and it takes even more 
+	; than this amount of time for the server to actually 
+	; send that first byte
+	;
+	; This limits the throughput to about 3.5K per second 
+	; with interrupts enabled and 32-byte block :(
+	; 
+	; Larger block sizes don't give enough interrupt 
+	; responsiveness.
+	jsr togglerts
 
 notendofblock
-	; Set ~RTS on, to tell the server we're reading the block
-	ldx #$55 : jsr setaciacontrol
-
-nextbyte
 	; Check if there's more to read
 	dec zp_block_len
 	bne nocarry
@@ -135,7 +141,12 @@ done
 	jmp ser_recv_code
 
 
+togglerts
+	lda aciacontrolbyte
+	eor #$40
+	tax
 setaciacontrol
+	stx aciacontrolbyte
 	lda #156
 	ldy #0
 	jmp $fff4

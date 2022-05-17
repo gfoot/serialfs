@@ -203,14 +203,14 @@ def send_code_recv(addr, length, data):
 		while not ser.read(1):
 			pass
 
+		current_dsr = ser.dsr
+
 		for offset in range(0, length, blocksize):
-			d = data[offset:offset+blocksize]
-			while ser.dsr:#read(1):
+			b = bytes(data[offset:offset+blocksize])
+			while ser.dsr == current_dsr:#read(1):
 				pass
-			while not ser.dsr:#read(1):
-				pass
-			
-			ser.write(d)
+			ser.write(b)
+			current_dsr = not current_dsr
 			
 
 # Send code to tell the client to send data back to the 
