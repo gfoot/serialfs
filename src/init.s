@@ -42,11 +42,17 @@ delay
 	bne delay
 
 	; Upgrade connection speed
-	lda #7 : ldx #8 : jsr $fff4               ; 19200 baud
-	lda #8 : ldx #8 : jsr $fff4               ; 19200 baud
-	lda #156 : ldx #1 : ldy #252 : jsr $fff4  ; x4 speed
 
-	; Turn off fake ACIA interrupts
+	; 19200 baud in and out
+	lda #7 : ldx #8 : jsr $fff4
+	lda #8 : ldx #8 : jsr $fff4
+
+	; x4 speed, 8N1, ~RTS off, Rx/Tx interrupts disabled
+	lda #156 : ldx #$15 : ldy #0 : jsr $fff4
+
+	; Turn off fake ACIA interrupts too (where the MOS code
+	; services the ACIA from VIA timer interrupts even if
+	; ACIA interrupts are turned off)
 	lda #232 : ldx #0 : ldy #0 : jsr $fff4
 
 	; Register CLI handler
@@ -102,8 +108,7 @@ delay
 	;jsr $ffee
 
 	; Disable interrupts so that we don't miss any bytes
-	; FIXME: This ought to operate in 32-byte batches like 
-	; recvblock.s does
+	; FIXME: allow IRQs during transfer
 	php
 	sei
 

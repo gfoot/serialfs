@@ -22,6 +22,9 @@ import time
 himem = 0x9c
 
 
+allow_irq_during_recv = True
+
+
 loglevel = 1
 
 def log(level, *args):
@@ -177,26 +180,18 @@ def send_code_mainexec(a, x, y, addr):
 # on transfer length.
 def send_code_recv(addr, length, data):
 
-	# The small block receiver is disabled because it
-	# doesn't support interrupts (yet?) - we use the
-	# large block receiver for everything now
-	if False and length <= 256:
-
-		send_code_fromfile("data/recvblocksmall.x",
-			(1, addr & 0xff),
-			(3, (addr>>8) & 0xff),
-			(5, length))
-
-		while not ser.read(1):
-			pass
-
-		ser.write(reversed(data))
-
-	else:
+	if allow_irq_during_recv:
+		# Experimental support for servicing interrupts
+		# during the transfer
+		#
+		# This slows the transfer down from about 7.5K/s
+		# to about 5K/s
+		#
+		# See [interrupts.md] for more information
 
 		blocksize = 32
 
-		send_code_fromfile("data/recvblock.x",
+		send_code_fromfile("data/recvblockwithirq.x",
 			(3, addr & 0xff),
 			(4, (addr>>8) & 0xff),
 			(5, length & 0xff),
@@ -214,7 +209,32 @@ def send_code_recv(addr, length, data):
 				pass
 			ser.write(b)
 			current_dsr = not current_dsr
-			
+
+	elif length <= 256:
+
+		send_code_fromfile("data/recvblocksmall.x",
+			(1, addr & 0xff),
+			(3, (addr>>8) & 0xff),
+			(5, length))
+
+		while not ser.read(1):
+			pass
+
+		ser.write(reversed(data))
+
+	else:
+
+		send_code_fromfile("data/recvblock.x",
+			(3, addr & 0xff),
+			(4, (addr>>8) & 0xff),
+			(5, length & 0xff),
+			(6, (length>>8) & 0xff))
+
+		while not ser.read(1):
+			pass
+
+		ser.write(data)
+
 
 # Send code to tell the client to send data back to the 
 # server.
