@@ -22,7 +22,7 @@ import time
 himem = 0x9c
 
 
-allow_irq_during_recv = True
+allow_irq_during_recv = False
 
 
 loglevel = 1
