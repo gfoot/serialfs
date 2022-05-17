@@ -177,7 +177,10 @@ def send_code_mainexec(a, x, y, addr):
 # on transfer length.
 def send_code_recv(addr, length, data):
 
-	if length <= 256:
+	# The small block receiver is disabled because it
+	# doesn't support interrupts (yet?) - we use the
+	# large block receiver for everything now
+	if False and length <= 256:
 
 		send_code_fromfile("data/recvblocksmall.x",
 			(1, addr & 0xff),
@@ -207,7 +210,7 @@ def send_code_recv(addr, length, data):
 
 		for offset in range(0, length, blocksize):
 			b = bytes(data[offset:offset+blocksize])
-			while ser.dsr == current_dsr:#read(1):
+			while ser.dsr == current_dsr:
 				pass
 			ser.write(b)
 			current_dsr = not current_dsr

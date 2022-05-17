@@ -59,8 +59,6 @@ delay
 	bne delay
 .)
 
-	; Start with this negative to signal end of block
-	dey
 	sty blocksizerem
 
 	; Disable interrupts
@@ -72,12 +70,10 @@ delay
 loop
 	; Start of new block if blocksizerem is negative
 	ldy blocksizerem
-	bpl receive
+	bne receive
 
-	; Read up to 'blocksize' more bytes before the next break.
-	; 'blocksizerem' counts from blocksize-1 to -1.
+	; Read up to 'blocksize' more bytes before the next break
 	ldy blocksize
-	dey
 	sty blocksizerem
 
 receive
@@ -90,16 +86,12 @@ receive
 
 	; Was that the second-last byte of the block?
 	dec blocksizerem
-	bne notendofblock
+	ldy blocksizerem
+	cpy #29
+	bne nottoggle
 
 	; If it was the second-last byte of the block...
 	
-	; Re-enable interrupts briefly - this is ok because there's
-	; only one more byte to read, so we don't need to read it 
-	; urgently, as it won't get overwritten if we don't
-	plp
-	php : sei
-
 	; Toggle ~RTS to signal the server to send the next block
 	;
 	; We do this significantly in advance because it actually
@@ -119,8 +111,19 @@ receive
 	; Larger block sizes don't give enough interrupt 
 	; responsiveness.
 	jsr togglerts
+	jmp checkformore
 
-notendofblock
+nottoggle
+	cpy #1
+	bne checkformore
+
+	; Re-enable interrupts briefly - this is ok because there's
+	; only one more byte to read, so we don't need to read it 
+	; urgently, as it won't get overwritten if we don't
+	plp
+	php : sei
+
+checkformore
 	; Check if there's more to read
 	dec zp_block_len
 	bne nocarry

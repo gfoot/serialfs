@@ -102,6 +102,8 @@ delay
 	;jsr $ffee
 
 	; Disable interrupts so that we don't miss any bytes
+	; FIXME: This ought to operate in 32-byte batches like 
+	; recvblock.s does
 	php
 	sei
 
