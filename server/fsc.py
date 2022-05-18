@@ -4,6 +4,7 @@ from send_code_main import *
 from send_code_send import *
 from send_code_recv import *
 from send_code_message import *
+from send_code_error import *
 from utils import *
 
 import fs
@@ -38,27 +39,22 @@ def do_fsc(a, x, y):
 def do_fsc_run(filename, a, x, y):
 	log(1, "    RUN %s" % filename)
 
-	# Fetch the file content from storage
-	content = None
-	try:
-		with fs.openfile(filename, "rb") as fp:
-			content = fp.read()
-			fp.close()
-	except FileNotFoundError:
-		send_code_main(a, x, y) # fixme: should give error?
+	f = fs.File(filename)
+	if not f.exists:
+		send_code_error_filenotfound()
 		return
+
+	content = f.read()
 
 	hexdump(content)
 
-	inf = fs.readinf(filename)
-
 	# Tell the client to receive the content data
-	send_code_recv(inf.addr_load, inf.length, content)
+	send_code_recv(f.addr_load, f.length, content)
 
 	# Return the client to resting state but transferring
 	# execution to addr_exec rather than just returning to
 	# the caller
-	send_code_mainexec(a, x, y, inf.addr_exec)
+	send_code_mainexec(a, x, y, f.addr_exec)
 
 
 # Unrecognized star command

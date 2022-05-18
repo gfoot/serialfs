@@ -94,9 +94,21 @@ def do_rename(cmd, rest, a, x, y):
 	send_code_error(253, "Unsupported API")
 
 
+def do_drive(cmd, rest, a, x, y):
+	log(1, "    DRIVE %s" % rest)
+
+	drive = sanitize_filename(rest)
+	if drive == "0":
+		send_code_main(a, x, y)
+		return
+
+	send_code_error(205, "Bad drive")
+
+
 commands = {
 	"DELETE": do_delete,
 	"DIR": do_dir,
+	"DRIVE": do_drive,
 	"INFO": do_info,
 	"RENAME": do_rename,
 }
