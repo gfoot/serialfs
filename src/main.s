@@ -27,6 +27,12 @@ start
 	ldy vary
 
 	bit exec
+
+	clc
+	bvc nosetcarry
+	sec
+nosetcarry
+
 	bmi do_exec
 	rts
 

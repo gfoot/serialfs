@@ -143,6 +143,7 @@ def do_file_readparams(param_block, filename, a, x, y):
 	f = fs.File(filename)
 	if not f.exists:
 		send_code_main(0, x, y)
+		return
 
 	update_params_from_file(param_block, f)
 

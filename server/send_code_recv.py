@@ -27,6 +27,8 @@ def send_code_recv(addr, length, data):
 			(6, (length>>8) & 0xff),
 			(7, blocksize))
 
+		hexdump(data[:length])
+
 		while not ser.read(1):
 			pass
 
@@ -46,6 +48,8 @@ def send_code_recv(addr, length, data):
 			(3, (addr>>8) & 0xff),
 			(5, length))
 
+		hexdump(data[:length])
+
 		while not ser.read(1):
 			pass
 
@@ -58,6 +62,8 @@ def send_code_recv(addr, length, data):
 			(4, (addr>>8) & 0xff),
 			(5, length & 0xff),
 			(6, (length>>8) & 0xff))
+
+		hexdump(data[:length])
 
 		while not ser.read(1):
 			pass

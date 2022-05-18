@@ -15,6 +15,8 @@ def send_code_send(addr, length):
 	while len(content) < length:
 		content.extend(ser.read(length - len(content)))
 
+	hexdump(content)
+
 	return content
 
 # Send code to tell the client to send a string to the server.
