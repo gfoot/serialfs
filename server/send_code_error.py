@@ -20,3 +20,6 @@ def send_code_error_filenotfound():
 def send_code_error_filelocked():
 	send_code_error(195, "File locked")
 
+def send_code_error_badcommand():
+	send_code_error(254, "Bad command")
+

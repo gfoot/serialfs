@@ -8,45 +8,67 @@ from send_code_error import *
 from utils import *
 
 import fs
+import osargs
 import oscli
 import osfile
 
 
-# List of FSC functions that use X/Y to point to a filename
-fscs_with_filename = set([2, 3, 4, 5])
+# Extract the first word from a command string and also
+# return the index to the next non-space character for
+# OSARGS 1 to use later on
+def split_first_word(command):
+	startindex = 0
+	while startindex < len(command) and command[startindex] == " ":
+		startindex += 1
+
+	endindex = startindex
+	while endindex < len(command) and command[endindex] != " ":
+		endindex += 1
+
+	nextindex = endindex
+	while nextindex < len(command) and command[nextindex] == " ":
+		nextindex += 1
+
+	return command[startindex:endindex], nextindex
+
+
+# List of FSC functions that use X/Y to point to a string
+fscs_with_string = set([2, 3, 4, 5])
 
 # FSC
 def do_fsc(a, x, y):
 	log(2, "    OSFSC %02x  %02x %02x" % (a, x, y))
 
-	# Fetch the filename now if there is one
-	if a in fscs_with_filename:
-		filename = send_code_sendstring(x+y*256, 16)
-		filename = sanitize_filename(filename)
+	# Fetch the string now if there is one
+	if a in fscs_with_string:
+		command = send_code_sendstring(x+y*256, 255)
+		filename, tailoffset = split_first_word(command)
 
 	# Dispatch subfunctions appropriately
 	if a == 2 or a == 4:
-		do_fsc_run(filename, a, x, y)
+		do_fsc_run(filename, tailoffset, a, x, y)
 	elif a == 3:
-		do_fsc_oscli(filename, a, x, y)
+		do_fsc_oscli(command, filename, tailoffset, a, x, y)
 	elif a == 5:
 		do_fsc_cat(filename, a, x, y)
 	else:
 		# Unsupported - go to resting state with unchanged regs
 		send_code_main(a, x, y)
 
-# FSC functions 2 and 4 mean RUN
-def do_fsc_run(filename, a, x, y):
-	log(1, "    RUN %s" % filename)
 
+# Helper to *RUN an executable
+def run_worker(filename, tailoffset, a, x, y):
 	f = fs.File(filename)
 	if not f.exists:
-		send_code_error_filenotfound()
-		return
+		return False
+
+	log(2, "        running %s" % filename)
 
 	content = f.read()
 
 	hexdump(content)
+
+	osargs.set_tail_ptr(tailoffset+x+y*256)
 
 	# Tell the client to receive the content data
 	send_code_recv(f.addr_load, f.length, content)
@@ -56,21 +78,53 @@ def do_fsc_run(filename, a, x, y):
 	# the caller
 	send_code_mainexec(a, x, y, f.addr_exec)
 
+	return True
+
+
+# FSC functions 2 and 4 mean RUN
+def do_fsc_run(filename, tailoffset, a, x, y):
+	log(1, "    RUN %s" % filename)
+
+	if not run_worker(filename, tailoffset, a, x, y):
+		send_code_error_filenotfound()
+
 
 # Unrecognized star command
-def do_fsc_oscli(command, a, x, y):
-	if not oscli.handle(command, a, x, y):
-		do_fsc_run(command, a, x, y)
+def do_fsc_oscli(command, filename, tailoffset, a, x, y):
+	log(1, "    *%s" % command)
+	if oscli.handle(command, a, x, y):
+		return
+
+	if run_worker(filename, tailoffset, a, x, y):
+		return
+
+	if run_worker(fs.library+"."+filename, tailoffset, a, x, y):
+		return
+
+	send_code_error_badcommand()
 
 
 # CAT
 def do_fsc_cat(filename, a, x, y):
 	log(1, "    CAT %s" % filename)
+	
+	drive = fs.current_drive
+	if filename:
+		try:
+			drive = int(filename)
+		except:
+			send_code_error(205, "Bad drive")
+			return
 
-	send_code_message("Directory: %s\r\n" % fs.getdir())
+	if not fs.validdrive(drive):
+		send_code_error(205, "Bad drive")
+		return
+
+	send_code_message("%s\r\n" % fs.gettitle(drive))
+	send_code_message("Directory %s\r\n" % fs.getdir(drive))
 
 	# See what files we have
-	filenames = sorted([fn for fn in fs.listdir(".")])
+	filenames = sorted([fn for fn in fs.listdir(drive)])
 
 	files_in_dir = ["  "+f[2:] for f in filenames if fs.file_in_current_dir(f)]
 

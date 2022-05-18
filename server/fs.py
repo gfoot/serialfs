@@ -4,20 +4,88 @@ import re
 
 root = "storage"
 current_directory = "$"
+library = ":0.$"
+current_drive = 0
+
+mounts = [ "DEFAULT" ]
 
 validchars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!$-_=+"
 
-def getdir():
-	return ":0."+current_directory
+def getdir(drive=-1):
+	if drive == -1:
+		drive = current_drive
+	return ":%d.%s" % (drive, current_directory)
 
 def setdir(d):
 	global current_directory
 	current_directory = d
 
+def gettitle(drive=-1):
+	if drive == -1:
+		drive = current_drive
+	if drive >= 0 and drive < len(mounts):
+		return mounts[drive]
+	return ""
+
+# Do a case-insensitive search and adjust the filename's
+# case if necessary
+def fixcase(path):
+	if os.path.exists(path):
+		return path
+
+	segments = path.split('/')
+	for i in range(len(segments)):
+		direc = '/'.join(segments[:i])
+		if not direc:
+			direc = "."
+		if not os.path.isdir(direc):
+			return None
+		if os.path.exists(direc+"/"+segments[i]):
+			continue
+
+		for entry in os.listdir(direc):
+			if entry.upper() == segments[i].upper():
+				segments[i] = entry
+				break
+
+	return '/'.join(segments)
+
+
+def mount(drive, relpath):
+	path = root + "/" + relpath
+	if "/../" in path:
+		return False
+	path = fixcase(path)
+	if not path:
+		return False
+	if not os.path.isdir(path):
+		return False
+	if drive < 0:
+		return False
+	
+	if drive >= len(mounts):
+		mounts.extend([None] * (drive + 1 - len(mounts)))
+
+	mounts[drive] = path[len(root)+1:]
+	return True
+
+def listmounts():
+	return list(os.listdir(root))
+
+def drive(drive):
+	if not validdrive(drive):
+		return False
+
+	global current_drive
+	current_drive = drive
+	return True
+
+
 def file_in_current_dir(f):
 	return f.startswith(current_directory+".") or "." not in f
 
-def fn(name):
+def fn(drive, name):
+	
 	d = current_directory
 	if '.' in name:
 		d = name[0]
@@ -28,16 +96,20 @@ def fn(name):
 	if d != '$':
 		name = d+"."+name
 
-	return root + "/" + name
+	return root + "/" + mounts[drive] + "/" + name
 
-def openfile(name, mode):
-	return open(fn(name), mode)
+def validdrive(drive):
+	return drive >=0 and drive < len(mounts) and mounts[drive]
 
-def listdir(name):
-	directory = root
+def listdir(drive=-1):
+	if drive == -1:
+		drive = current_drive
+	
+	if not validdrive(drive):
+		return
+
+	directory = root + "/" + mounts[drive]
 	for filename in os.listdir(directory):
-		if len(filename) >= 16:
-			continue
 		if filename.endswith(".inf"):
 			continue
 		if os.path.isdir(directory + "/" + filename):
@@ -48,20 +120,19 @@ def listdir(name):
 			filename = filename[2:]
 			if d == '.' or '.' in filename:
 				continue
-			
-		yield d+'.'+filename
+		
+		result = d+'.'+filename
+		if len(result) >= 18:
+			continue
 
-def delete(name):
-	os.remove(fn(name))
+		yield result
 
-def exists(name):
-	return os.path.exists(fn(name))
 
 re_drive = re.compile(r':([0-9]+)\.(.*)')
 
 def split(path):
 
-	drive = 0
+	drive = current_drive
 
 	path = path.strip()
 
@@ -91,7 +162,7 @@ def glob(afsp):
 	print(regex)
 	regex = re.compile('^'+regex+'$')
 
-	for f in sorted(listdir(".")):
+	for f in sorted(listdir(drive)):
 		m = regex.match(f)
 		print(f, m)
 		if m:
@@ -105,9 +176,12 @@ infre = re.compile(r' *([^ ]+) +([0-9a-zA-Z]+) +([0-9a-zA-Z]+) +([0-9a-zA-Z]+)')
 
 class File:
 	def __init__(self, name):
+		drive, name = split(name)
+
+		self.drive = drive
 		self.name = name
-		self.osname = fn(name)
-		self.infname = fn(name)+".inf"
+		self.osname = fn(self.drive, name)
+		self.infname = fn(self.drive, name)+".inf"
 		
 		self.exists = os.path.exists(self.osname)
 

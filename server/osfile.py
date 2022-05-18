@@ -35,7 +35,12 @@ def do_file(a, x, y):
 	handlers = {
 		0xff: do_file_load,
 		0x00: do_file_save,
-		0x05: do_file_attr
+		0x01: do_file_writeparams,
+		0x02: do_file_writeload,
+		0x03: do_file_writeexec,
+		0x04: do_file_writeattr,
+		0x05: do_file_readparams,
+		0x06: do_file_delete
 	}
 	if a not in handlers:
 		log(1, "    Unsupported OSFILE &%02x" % a)
@@ -85,9 +90,55 @@ def do_file_load(param_block, filename, a, x, y):
 	send_code_main(1, x, y)
 
 
-# OSFILE 5 - read all attributes
-def do_file_attr(param_block, filename, a, x, y):
-	log(1, "    OSFILE ATTR %s" % filename)
+# OSFILE 1 - write all params
+def do_file_writeparams(param_block, filename, a, x, y):
+	log(1, "    OSFILE WRITEPARAMS %s" % filename)
+	writeparams_helper(param_block, filename, True, True, True, a, x, y)
+
+# OSFILE 2 - write load address
+def do_file_writeload(param_block, filename, a, x, y):
+	log(1, "    OSFILE WRITELOAD %s" % filename)
+	writeparams_helper(param_block, filename, True, False, False, a, x, y)
+
+# OSFILE 3 - write execution address
+def do_file_writeexec(param_block, filename, a, x, y):
+	log(1, "    OSFILE WRITEEXEC %s" % filename)
+	writeparams_helper(param_block, filename, False, True, False, a, x, y)
+
+# OSFILE 4 - write attributes
+def do_file_writeattr(param_block, filename, a, x, y):
+	log(1, "    OSFILE WRITEATTR %s" % filename)
+	writeparams_helper(param_block, filename, False, False, True, a, x, y)
+
+# Helper for writing some/all params for a file
+def writeparams_helper(param_block, filename, writeload, writeexec, writeattr, a, x, y):
+	f = fs.File(filename)
+	if not f.exists:
+		send_code_main(0, x, y)
+
+	if writeload:
+		f.addr_load = read32(param_block, 2)
+	if writeexec:
+		f.addr_exec = read32(param_block, 6)
+	if writeattr:
+		pass
+		#f.attributes = read32(param_block, 10)
+
+	f.writeinf()
+
+	if False:
+		update_params_from_file(param_block, f)
+	
+		# ... and tell the client to receive it
+		send_code_recv(x+256*y, 0x12, param_block)
+
+	# Then go to resting state
+	send_code_main(1, x, y)
+
+
+# OSFILE 5 - read all params
+def do_file_readparams(param_block, filename, a, x, y):
+	log(1, "    OSFILE READPARAMS %s" % filename)
 
 	f = fs.File(filename)
 	if not f.exists:
@@ -139,4 +190,23 @@ def do_file_save(param_block, filename, a, x, y):
 
 	# Put the client in resting state
 	send_code_main(1, x, y)
+
+
+# OSFILE 6 - delete
+def do_file_delete(param_block, filename, a, x, y):
+	log(1, "    OSFILE DELETE %s" % filename)
+	
+	f = fs.File(filename)
+
+	if not f.exists:
+		send_code_main(0, x, y)
+		return
+
+	try:
+		f.delete()
+	except:
+		send_code_error_filelocked()
+		return
+
+	send_code_main(a, x, y)
 
