@@ -14,3 +14,9 @@ def send_code_error(errno, message):
 	send_code(bytes(code), "error")
 
 
+def send_code_error_filenotfound():
+	send_code_error(214, "File not found")
+
+def send_code_error_filelocked():
+	send_code_error(195, "File locked")
+

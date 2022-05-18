@@ -4,7 +4,7 @@ from utils import *
 
 # Send code to cause the client to print a message which is 
 # embedded in the code
-def send_code_printmessage(message):
+def send_code_message(message):
 	with open("data/message.x", "rb") as fp:
 		code = list(fp.read())
 		fp.close()

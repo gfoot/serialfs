@@ -1,16 +1,15 @@
 from connection import ser
 
+import settings
+
+
 # iso-8859-1 should allow all 256 base values to work in 
 # strings as well as byte arrays
 def s2b(s):
 	return bytes(s, "iso-8859-1")
 
-loglevel = 0
-def setloglevel(level):
-	loglevel = level
-
 def log(level, *args):
-	if level <= loglevel:
+	if level <= settings.loglevel:
 		print(*args)
 
 

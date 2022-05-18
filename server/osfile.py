@@ -6,32 +6,16 @@ from send_code_main import *
 from send_code_send import *
 from send_code_recv import *
 
+import fs
+
 from utils import *
 
-# Regexp for parsing inf files.  This tolerates but 
-# ignores additional fields.
-infre = re.compile(r' *([^ ]+) +([0-9a-zA-Z]+) +([0-9a-zA-Z]+) +([0-9a-zA-Z]+)')
-
 # Update an OSFILE parameter block from an inf file
-def update_params_from_inf(param_block, filename):
-	try:
-		with open("storage/%s.inf" % filename, "r") as fp:
-			line = fp.read()
-			fp.close()
-	except FileNotFoundError:
-		return False
-	
-	m = infre.match(line)
-	assert m
-
-	fn, addr_load, addr_exec, length = m.groups()
-	
-	write32(param_block, 2, int(addr_load, base=16))
-	write32(param_block, 6, int(addr_exec, base=16))
-	write32(param_block, 10, int(length, base=16))
+def update_params_from_file(param_block, f):
+	write32(param_block, 2, f.addr_load)
+	write32(param_block, 6, f.addr_exec)
+	write32(param_block, 10, f.length)
 	write32(param_block, 14, 0x77)
-
-	return True
 
 
 # OSFILE handler
@@ -72,19 +56,17 @@ def do_file_load(param_block, filename, a, x, y):
 	log(1, "    OSFILE LOAD %s %s" % (filename, "" if default_address else ("%04x" % addr_load)))
 
 	# Fetch the content from storage
-	content = None
-	try:
-		with open("storage/%s" % filename, "rb") as fp:
-			content = fp.read()
-			fp.close()
-	except FileNotFoundError:
-		send_code_error(214, "File not found")
+	f = fs.File(filename)
+	if not f.exists:
+		send_code_error_filenotfound()
 		return
+
+	content = f.read()
 
 	hexdump(content)
 
 	# Update the parameter block based on the inf file
-	assert update_params_from_inf(param_block, filename)
+	update_params_from_file(param_block, f)
 
 	# If we're meant to use the file's default load address,
 	# do so now
@@ -107,10 +89,11 @@ def do_file_load(param_block, filename, a, x, y):
 def do_file_attr(param_block, filename, a, x, y):
 	log(1, "    OSFILE ATTR %s" % filename)
 
-	# All we do here is update the parameter block from the
-	# inf file...
-	if not update_params_from_inf(param_block, filename):
+	f = fs.File(filename)
+	if not f.exists:
 		send_code_main(0, x, y)
+
+	update_params_from_file(param_block, f)
 
 	# ... and tell the client to receive it
 	send_code_recv(x+256*y, 0x12, param_block)
@@ -140,27 +123,20 @@ def do_file_save(param_block, filename, a, x, y):
 
 	log(3, bytes(content))
 
+	f = fs.File(filename)
+	f.write(content)
+
+	f.addr_load = addr_load
+	f.addr_exec = addr_exec
+	f.writeinf()
+
 	# Update the parameter block as the field meanings are
 	# different after a SAVE to what they are beforehand
-	write32(param_block, 10, length)
-	write32(param_block, 14, 0x77) # access permissions
-
-	hexdump(param_block)
+	update_params_from_file(param_block, f)
 
 	# Tell the client to receive the new parameter block
 	send_code_recv(x+256*y, 0x12, param_block)
 
 	# Put the client in resting state
 	send_code_main(1, x, y)
-
-	# Save the actual content data
-	with open("storage/%s" % filename, "wb") as fp:
-		fp.write(bytes(content))
-		fp.close()
-
-	# Save the inf file
-	with open("storage/%s.inf" % filename, "w") as fp:
-		fp.write("% 16s  %04x %04x %04x\n" % (filename, addr_load, addr_exec, length))
-		fp.close()
-
 

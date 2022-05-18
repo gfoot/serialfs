@@ -127,7 +127,7 @@ def send_init_program():
 	ser.baudrate = 76800
 
 	# Send code to print startup message
-	send_code_printmessage("\x0aSerialFS active\x0a\x0d")
+	send_code_message("\x0aSerialFS active\x0a\x0d")
 
 	# Activate SerialFS
 	send_code_fromfile("data/activate.x")
