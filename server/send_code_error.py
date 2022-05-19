@@ -23,3 +23,6 @@ def send_code_error_filelocked():
 def send_code_error_badcommand():
 	send_code_error(254, "Bad command")
 
+def send_code_error_channel():
+	send_code_error(222, "Channel")
+

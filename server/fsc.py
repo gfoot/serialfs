@@ -45,7 +45,9 @@ def do_fsc(a, x, y):
 		filename, tailoffset = split_first_word(command)
 
 	# Dispatch subfunctions appropriately
-	if a == 2 or a == 4:
+	if a == 1:
+		do_fsc_ext(a, x, y)
+	elif a == 2 or a == 4:
 		do_fsc_run(filename, tailoffset, a, x, y)
 	elif a == 3:
 		do_fsc_oscli(command, filename, tailoffset, a, x, y)
@@ -79,6 +81,20 @@ def run_worker(filename, tailoffset, a, x, y):
 	send_code_mainexec(a, x, y, f.addr_exec)
 
 	return True
+
+
+# FSC function 1 - EXT#
+def do_fsc_ext(a, x, y):
+	log(1, "    EXT %d" % x)
+
+	f = fs.checkhandle(x)
+	if not f:
+		send_code_error_channel()
+		return
+
+	x = 0xff if f.eof() else 0
+
+	send_code_main(a, x, y)
 
 
 # FSC functions 2 and 4 mean RUN

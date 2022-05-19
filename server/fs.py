@@ -243,3 +243,131 @@ class File:
 		os.remove(self.osname)
 		os.remove(self.infname)
 
+
+	def open(self, allow_read, allow_write):
+		self.allow_read = allow_read
+		self.allow_write = allow_write
+	
+		if self.allow_write and not self.allow_read:
+			if self.exists:
+				self.delete()
+				self.exists = False
+
+		if not self.exists:
+			if not self.allow_write:
+				return False
+
+			self.addr_load = 0
+			self.addr_exec = 0
+			self.length = 0
+			self.write([])
+			self.writeinf()
+
+		self.content = list(self.read())
+		self.length = len(self.content)
+		self.pos = 0
+
+		return True
+
+
+	def close(self):
+		assert self.content is not None
+
+		self.flush()
+
+		self.content = None
+
+	
+	def eof(self):
+		return self.pos == len(self.content)
+
+
+	def bput(self, value):
+		if self.pos == len(self.content):
+			self.content.append(value)
+			self.length = len(self.content)
+		else:
+			self.content[self.pos] = value
+
+		self.pos = self.pos + 1
+
+
+	def bget(self):
+		if self.eof():
+			return None
+
+		value = self.content[self.pos]
+		self.pos = self.pos+1
+		return value
+
+	def seek(self, pos):
+		if pos < 0 or pos > len(self.content):
+			return False
+
+		self.pos = pos
+		return True
+
+	def flush(self):
+		if self.content and self.allow_write:
+			self.write(self.content)
+			self.writeinf()
+
+
+handles = [None]
+
+
+def openfile(filename, allow_read, allow_write):
+	f = File(filename)
+	f.open(allow_read, allow_write)
+
+	handle = None
+	for i,filedata in enumerate(handles):
+		if i and not filedata:
+			handle = i
+
+	if handle is None:
+		handle = len(handles)
+		handles.append(None)
+
+	handles[handle] = f
+
+	return handle
+
+def closefile(handle):
+	if handle < 1 or handle >= len(handles):
+		return False
+	
+	if handles[handle]:
+		handles[handle].close()
+		handles[handle] = None
+	
+	return True
+
+def closeall():
+	for i in range(len(handles)):
+		if handles[i]:
+			closefile(i)
+	return True
+
+def flushall():
+	for i in range(len(handles)):
+		if handles[i]:
+			handles[i].flush()
+
+
+def checkhandle(handle):
+	if handle >= 1 and handle < len(handles):
+		return handles[handle]
+
+def bput(handle, value):
+	if not checkhandle(handle):
+		return False
+
+	handles[handle].bput(value)
+
+def bget(handle):
+	if not checkhandle(handle):
+		return None
+
+	return handles[handle].bget()
+
