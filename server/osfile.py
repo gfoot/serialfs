@@ -15,7 +15,7 @@ def update_params_from_file(param_block, f):
 	write32(param_block, 2, f.addr_load)
 	write32(param_block, 6, f.addr_exec)
 	write32(param_block, 10, f.length)
-	write32(param_block, 14, 0x77)
+	write32(param_block, 14, f.attr)
 
 
 # OSFILE handler
@@ -61,7 +61,7 @@ def do_file_load(param_block, filename, a, x, y):
 	log(1, "    OSFILE LOAD %s %s" % (filename, "" if default_address else ("%04x" % addr_load)))
 
 	# Fetch the content from storage
-	f = fs.File(filename)
+	f = fs.file(filename)
 	if not f.exists:
 		send_code_error_filenotfound()
 		return
@@ -112,17 +112,17 @@ def do_file_writeattr(param_block, filename, a, x, y):
 
 # Helper for writing some/all params for a file
 def writeparams_helper(param_block, filename, writeload, writeexec, writeattr, a, x, y):
-	f = fs.File(filename)
+	f = fs.file(filename)
 	if not f.exists:
 		send_code_main(0, x, y)
+		return
 
 	if writeload:
 		f.addr_load = read32(param_block, 2)
 	if writeexec:
 		f.addr_exec = read32(param_block, 6)
 	if writeattr:
-		pass
-		#f.attributes = read32(param_block, 10)
+		f.attr = read32(param_block, 14)
 
 	f.writeinf()
 
@@ -140,7 +140,7 @@ def writeparams_helper(param_block, filename, writeload, writeexec, writeattr, a
 def do_file_readparams(param_block, filename, a, x, y):
 	log(1, "    OSFILE READPARAMS %s" % filename)
 
-	f = fs.File(filename)
+	f = fs.file(filename)
 	if not f.exists:
 		send_code_main(0, x, y)
 		return
@@ -175,7 +175,7 @@ def do_file_save(param_block, filename, a, x, y):
 
 	log(3, bytes(content))
 
-	f = fs.File(filename)
+	f = fs.file(filename)
 	f.write(content)
 
 	f.addr_load = addr_load
@@ -197,9 +197,9 @@ def do_file_save(param_block, filename, a, x, y):
 def do_file_delete(param_block, filename, a, x, y):
 	log(1, "    OSFILE DELETE %s" % filename)
 	
-	f = fs.File(filename)
-
+	f = fs.file(filename)
 	if not f.exists:
+		fs.closefile(h)
 		send_code_main(0, x, y)
 		return
 

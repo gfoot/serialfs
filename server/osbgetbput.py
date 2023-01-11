@@ -8,7 +8,7 @@ import fs
 def do_bget(a, x, y):
 	log(1, "    OSBGET")
 
-	f = fs.checkhandle(y)
+	f = fs.getfile(y)
 	if not f:
 		send_code_error_channel()
 		return
@@ -28,7 +28,7 @@ def do_bget(a, x, y):
 def do_bput(a, x, y):
 	log(1, "    OSBPUT")
 
-	f = fs.checkhandle(y)
+	f = fs.getfile(y)
 	if not f:
 		send_code_error_channel()
 		return

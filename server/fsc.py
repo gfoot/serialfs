@@ -60,7 +60,7 @@ def do_fsc(a, x, y):
 
 # Helper to *RUN an executable
 def run_worker(filename, tailoffset, a, x, y):
-	f = fs.File(filename)
+	f = fs.file(filename)
 	if not f.exists:
 		return False
 
@@ -87,7 +87,7 @@ def run_worker(filename, tailoffset, a, x, y):
 def do_fsc_ext(a, x, y):
 	log(1, "    EXT %d" % x)
 
-	f = fs.checkhandle(x)
+	f = fs.getfile(x)
 	if not f:
 		send_code_error_channel()
 		return

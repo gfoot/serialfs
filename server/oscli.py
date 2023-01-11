@@ -75,7 +75,7 @@ def parse_drive(s):
 def do_delete(cmd, rest, a, x, y):
 	filename = sanitize_filename(rest)
 
-	f = fs.File(filename)
+	f = fs.file(filename)
 
 	if not f.exists:
 		send_code_error_filenotfound()
@@ -108,7 +108,7 @@ def do_info(cmd, rest, a, x, y):
 		files.append(path)
 
 	for filename in files:
-		f = fs.File(filename)
+		f = fs.file(filename)
 		if not f.exists:
 			send_code_error_filenotfound()
 			return
