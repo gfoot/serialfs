@@ -9,6 +9,9 @@ import settings
 # on transfer length.
 def send_code_recv(addr, length, data):
 
+	log(3, "%08x %08x" % (addr, length))
+	log(3, "%d %d" % (length, len(data)))
+
 	if settings.allow_irq_during_recv:
 		# Experimental support for servicing interrupts
 		# during the transfer

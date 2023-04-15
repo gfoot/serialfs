@@ -109,6 +109,11 @@ class File:
 
 		log(3, "    Folder LLFS: file %s => %s + %s" % (name, osname, infname))
 		
+		self.checkexists()
+
+
+	def checkexists(self):
+
 		self.exists = os.path.exists(self.osname)
 
 		self.addr_load = None
@@ -116,8 +121,6 @@ class File:
 		self.length = None
 		self.attr = 0x77
 		self.extrainf = ""
-
-		self.content = None
 
 		if self.exists:
 			if not self.readinf():
@@ -143,10 +146,11 @@ class File:
 		if len(infdata) == 2:
 			infdata.append(infdata[-1])
 		if len(infdata) == 3:
-			infdata.append(os.path.getsize(self.osname))
+			infdata.append("%x" % os.path.getsize(self.osname))
 		if len(infdata) == 4:
 			infdata.append("77")
 
+		log(2, repr(infdata))
 		fn, addr_load, addr_exec, length, attr = infdata[:5]
 
 		if fn.upper() != self.name.upper():
@@ -180,78 +184,24 @@ class File:
 			fp.write(bytes(content))
 			fp.close()
 		self.length = len(content)
+		self.writeinf()
+
 
 	def delete(self):
 		os.remove(self.osname)
 		os.remove(self.infname)
 
-
-	def open(self, allow_read, allow_write):
-		self.allow_read = allow_read
-		self.allow_write = allow_write
-	
-		if self.allow_write and not self.allow_read:
-			if self.exists:
-				self.delete()
-				self.exists = False
-
-		if not self.exists:
-			if not self.allow_write:
-				return False
-
-			self.addr_load = 0
-			self.addr_exec = 0
-			self.length = 0
-			self.attr = 0x77
-			self.write([])
-			self.writeinf()
-
-		self.content = list(self.read())
-		self.length = len(self.content)
-		self.pos = 0
-
-		return True
+		self.checkexists()
 
 
-	def close(self):
-		assert self.content is not None
+	def create(self):
+		self.addr_load = 0
+		self.addr_exec = 0
+		self.length = 0
+		self.attr = 0x77
+		self.write([])
+		self.writeinf()
 
-		self.flush()
+		self.checkexists()
 
-		self.content = None
-
-	
-	def eof(self):
-		return self.pos == len(self.content)
-
-
-	def bput(self, value):
-		if self.pos == len(self.content):
-			self.content.append(value)
-			self.length = len(self.content)
-		else:
-			self.content[self.pos] = value
-
-		self.pos = self.pos + 1
-
-
-	def bget(self):
-		if self.eof():
-			return None
-
-		value = self.content[self.pos]
-		self.pos = self.pos+1
-		return value
-
-	def seek(self, pos):
-		if pos < 0 or pos > len(self.content):
-			return False
-
-		self.pos = pos
-		return True
-
-	def flush(self):
-		if self.content is not None and self.allow_write:
-			self.write(self.content)
-			self.writeinf()
 

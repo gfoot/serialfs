@@ -176,11 +176,11 @@ def do_file_save(param_block, filename, a, x, y):
 	log(3, bytes(content))
 
 	f = fs.file(filename)
-	f.write(content)
 
 	f.addr_load = addr_load
 	f.addr_exec = addr_exec
-	f.writeinf()
+
+	f.write(content)
 
 	# Update the parameter block as the field meanings are
 	# different after a SAVE to what they are beforehand

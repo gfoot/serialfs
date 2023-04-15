@@ -3,9 +3,10 @@ import re
 from utils import *
 
 import llfs_folder
+import llfs_ssd
 
 
-filesystems = [ llfs_folder ]
+filesystems = [ llfs_folder, llfs_ssd ]
 
 
 current_directory = "$"
@@ -20,6 +21,8 @@ validchars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!$-_=+"
 
 
 def initmounts():
+	log(2, "Initializing filesystems")
+
 	global initialized
 	initialized = True
 	mount(0, "DEFAULT")
@@ -61,6 +64,9 @@ def gettitle(drive=-1):
 
 
 def mount(drive, path):
+	if not initialized:
+		initmounts()
+
 	if drive < 0 or drive > 9:
 		return False
 
@@ -73,13 +79,15 @@ def mount(drive, path):
 
 	if not llfs:
 		return False
+
+	log(2, "Mounted filesystem: %s" % llfs)
 	
 	if drive >= len(mounts):
 		mounts.extend([None] * (drive + 1 - len(mounts)))
 
 	if mounts[drive]:
+		log(2, "Unmounting old filesystem for drive %d (%s)" % (drive, mounts[drive]))
 		mounts[drive].unmount()
-		mounts[drive] = None
 
 	mounts[drive] = llfs
 	return True
@@ -191,7 +199,11 @@ def openfile(filename, allow_read, allow_write):
 	if not f:
 		return 0
 
-	f.open(allow_read, allow_write)
+	of = OpenFile(f, allow_read, allow_write)
+
+	# The file should exist by this point (possibly created by OpenFile)
+	if not f.exists:
+		return 0
 
 	handle = None
 	for i,filedata in enumerate(handles):
@@ -202,7 +214,7 @@ def openfile(filename, allow_read, allow_write):
 		handle = len(handles)
 		handles.append(None)
 
-	handles[handle] = f
+	handles[handle] = of
 
 	return handle
 
@@ -251,4 +263,74 @@ def bget(handle):
 		return None
 
 	return file.bget()
+
+
+
+# Represents an open file, providing random access features mostly.
+# Whole file operations don't bother with this.
+class OpenFile:
+
+	def __init__(self, file, allow_read, allow_write):
+		self.file = file
+		
+		self.allow_read = allow_read
+		self.allow_write = allow_write
+	
+		if self.allow_write:
+			if not self.file.exists or not self.allow_read:
+				self.file.create()
+
+		if self.file.exists:
+			self.content = list(self.file.read())
+			self.length = len(self.content)
+		else:
+			# Invalid state
+			self.content = None
+			self.length = 0
+
+		self.pos = 0
+
+
+	def close(self):
+		assert self.content is not None
+
+		self.flush()
+
+		self.content = None
+
+	
+	def eof(self):
+		return self.pos == len(self.content)
+
+
+	def bput(self, value):
+		if self.pos == len(self.content):
+			self.content.append(value)
+			self.length = len(self.content)
+		else:
+			self.content[self.pos] = value
+
+		self.pos = self.pos + 1
+
+
+	def bget(self):
+		if self.eof():
+			return None
+
+		value = self.content[self.pos]
+		self.pos = self.pos+1
+		return value
+
+
+	def seek(self, pos):
+		if pos < 0 or pos > len(self.content):
+			return False
+
+		self.pos = pos
+		return True
+
+
+	def flush(self):
+		if self.content is not None and self.allow_write:
+			self.file.write(self.content)
 
