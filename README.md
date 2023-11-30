@@ -43,7 +43,7 @@ Check the settings match your environment by opening the settings file in a text
 
 N.B: "handshake" can be one of "cts" or "dsr", depending on how your serial device is wired. If in doubt, try both.
 
-Create the storage directory:
+Create the storage directory:  
 `mkdir -p storage/DEFAULT`
 
 ## Running SerialFS
