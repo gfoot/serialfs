@@ -1,4 +1,5 @@
 import serial
+import settings
 
 # Default serial settings on the beeb seem to be 9600 8-N-1
 #
@@ -8,5 +9,5 @@ import serial
 # wired in the Beeb, but transmitting at higher speeds might 
 # also be possible.  Not sure if Python Serial supports 
 # asymmetric settings.
-ser = serial.Serial("/dev/ttyUSB0", 9600, 8, "N", 1, timeout=1)
+ser = serial.Serial(settings.device, 9600, 8, "N", 1, timeout=1)
 
