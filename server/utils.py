@@ -80,6 +80,7 @@ def hexdump(bb):
 # Get's the handshake status, whether it's CTS or DSR
 def get_hshk():
 	if settings.handshake == "cts":
+		print(f"CTS = {settings.handshake}")
 		return ser.cts
 	else:
 		return ser.dsr
