@@ -20,32 +20,41 @@ directory on the server.
 
 The instructions assume a Debian-like operating system but they should be similar for other Linux based OSs.
 
-Change to your home directory:
+Change to your home directory:  
 `cd ~/`
  
-Install the dependencies: 
+Install the dependencies:  
 `sudo apt-get install git python3  python3-pip python3-venv xa65`
 
-Clone the serialfs repository and change directory into it:
+Add your user to the dialout group so you can access the serial device:  
+`sudo usermod -a -G dialout $USER`
+
+Clone the serialfs repository and change directory into it:  
 `git clone https://github.com/gfoot/serialfs.git && cd serialfs`
  
-Setup a Python virtual environment to keep dependencies contained from the OS:
+Setup a Python virtual environment to keep dependencies contained from the OS:  
 `python3 -m venv .venv`
 
-Install the Python dependencies:
+Install the Python dependencies:  
 `.venv/bin/python3 -m pip install -r requirements.txt`
+
+Check the settings match your environment by opening the settings file in a text editor:  
+`vim server/settings.py`  
+
+N.B: "handshake" can be one of "cts" or "dsr", depending on how your serial device is wired. If in doubt, try both.
+
 
 ## Running SerialFS
 
 ### On the Server
 
-Change into the serialfs directory:
+Change into the serialfs directory:  
 `cd ~/serialfs`
 
-Start SerialFS:
+Start SerialFS:  
 `.venv/bin/python3 server/serialfs-server.py`
 
-Stopping SerialFS:
+Stopping SerialFS:  
 `Ctrl` + `c`
 
 ### On the BBC
@@ -110,4 +119,6 @@ deep rabbit hole though.
 ## How it works
 
 See [How It Works](howitworks.md).
+
+
 
