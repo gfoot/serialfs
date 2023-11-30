@@ -72,7 +72,7 @@ def do_args_flush_open_files(a, x, y):
 def do_args_get_file_ptr(a, x, y):
 	log(2, "        get file #%d ptr" % y)
 
-	f = fs.checkhandle(y)
+	f = fs.getfile(y)
 	if not f:
 		send_code_error_channel()
 		return
@@ -88,7 +88,7 @@ def do_args_get_file_ptr(a, x, y):
 def do_args_set_file_ptr(a, x, y):
 	log(2, "        set file #%d ptr" % y)
 
-	f = fs.checkhandle(y)
+	f = fs.getfile(y)
 	if not f:
 		send_code_error_channel()
 		return
@@ -103,7 +103,7 @@ def do_args_set_file_ptr(a, x, y):
 def do_args_get_file_len(a, x, y):
 	log(2, "        get file #%d length" % y)
 
-	f = fs.checkhandle(y)
+	f = fs.getfile(y)
 	if not f:
 		send_code_error_channel()
 		return
@@ -119,7 +119,7 @@ def do_args_get_file_len(a, x, y):
 def do_args_flush_file(a, x, y):
 	log(2, "        flush file #%d" % y)
 
-	f = fs.checkhandle(y)
+	f = fs.getfile(y)
 	if not f:
 		send_code_error_channel()
 		return
