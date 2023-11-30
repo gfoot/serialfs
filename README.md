@@ -16,11 +16,42 @@ system, just as you would use \*DISC for example, and core
 filing system functions will now operate on files stored in a
 directory on the server.
 
-## Step by step
+## Server Installation
 
+The instructions assume a Debian-like operating system but they should be similar for other Linux based OSs.
+
+Change to your home directory:
+`cd ~/`
+ 
+Install the dependencies: 
+`sudo apt-get install git python3  python3-pip python3-venv xa65`
+
+Clone the serialfs repository and change directory into it:
+`git clone https://github.com/gfoot/serialfs.git && cd serialfs`
+ 
+Setup a Python virtual environment to keep dependencies contained from the OS:
+`python3 -m venv .venv`
+
+Install the Python dependencies:
+`.venv/bin/python3 -m pip install -r requirements.txt`
+
+## Running SerialFS
+
+### On the Server
+
+Change into the serialfs directory:
+`cd ~/serialfs`
+
+Start SerialFS:
+`.venv/bin/python3 server/serialfs-server.py`
+
+Stopping SerialFS:
+`Ctrl` + `c`
+
+### On the BBC
 With the server running, on the BBC type \*FX2,1
 
-    BBC Comupter
+    BBC Computer
     
     Turbo MMC
     
@@ -79,5 +110,4 @@ deep rabbit hole though.
 ## How it works
 
 See [How It Works](howitworks.md).
-
 
