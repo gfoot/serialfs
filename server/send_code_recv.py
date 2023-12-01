@@ -35,14 +35,14 @@ def send_code_recv(addr, length, data):
 		while not ser.read(1):
 			pass
 
-		current_dsr = ser.dsr
+		current_hshk = get_hshk()
 
 		for offset in range(0, length, blocksize):
 			b = bytes(data[offset:offset+blocksize])
-			while ser.dsr == current_dsr:
+			while get_hshk() == current_hshk:
 				pass
 			ser.write(b)
-			current_dsr = not current_dsr
+			current_hshk = not current_hshk
 
 	elif length <= 256:
 
