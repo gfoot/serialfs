@@ -1,3 +1,4 @@
+
 # ROMless Serial Filing System for the BBC Micro
 
 This is a remote filing system server for the BBC Micro that
@@ -45,6 +46,9 @@ N.B: "handshake" can be one of "cts" or "dsr", depending on how your serial devi
 
 Create the storage directory:  
 `mkdir -p storage/DEFAULT`
+
+You can now create new directories within `storage/DEFAULT` containing files and their corresponding `.inf` where available, or `.ssd` disc images. See [Supported APIS](#supported-apis) for info on switching between them.
+
 
 ## Running SerialFS
 
@@ -107,16 +111,20 @@ at E00 and avoid page A, and this runs well too.
 Aside from the "\*S" command to select the filing system, the
 following APIs are currently supported:
 
-* OSFILE &FF (load)
-* OSFILE &00 (save)
-* OSFILE &05 (read attrs)
-* FSCV 2,3,4 (variants of \*RUN)
-* FSCV 5 (\*CAT)
+| Command | FS Call | Notes |
+|--|--|--|
+| LOAD  | `&FF` ||
+| SAVE  | `&00` ||
+| SAVE  | `&00` ||
+| *RUN | `FSCV 2,3,4` | Variants of *RUN|
+| *CAT | `FSCV 5` | |
+| *DCAT | | Lists available directories and .ssd images |
+| *DIN | | Selects a directory or .ssd image |
+| *DRIVE | | Switches drives, currently only supports 0 for DEFAULT |
 
 This is enough to cover most simple usage.  The next tranche
-that are probably worth implementing are probably DELETE, INFO,
-and maybe DIR, and sequential file access (BGET, BPUT).  It's a
-deep rabbit hole though.
+that are probably worth implementing are probably DIR, and 
+sequential file access (BGET, BPUT).  It's a deep rabbit hole though.
 
 ## How it works
 
