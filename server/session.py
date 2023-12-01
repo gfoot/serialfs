@@ -109,7 +109,7 @@ def run():
 		return
 
 	if state == STATE_LISTEN:
-		if not get_hshk:
+		if not get_hshk():
 			time.sleep(0.1)
 			return
 
@@ -123,7 +123,7 @@ def run():
 		return
 		
 	if state == STATE_CONNECT:
-		if not get_hshk:
+		if not get_hshk():
 			state = STATE_DISCONNECTED
 			return
 
@@ -143,7 +143,7 @@ def run():
 		return
 
 	if state == STATE_INIT:
-		if not get_hshk:
+		if not get_hshk():
 			state = STATE_DISCONNECTED
 			return
 
@@ -159,7 +159,7 @@ def run():
 		return
 
 	if state == STATE_CONNECTED:
-		if not get_hshk:
+		if not get_hshk():
 			state = STATE_DISCONNECTED
 			return
 

@@ -35,11 +35,11 @@ def send_code_recv(addr, length, data):
 		while not ser.read(1):
 			pass
 
-		current_hshk = utils.get_hshk()
+		current_hshk = get_hshk()
 
 		for offset in range(0, length, blocksize):
 			b = bytes(data[offset:offset+blocksize])
-			while utils.get_hshk() == current_hshk:
+			while get_hshk() == current_hshk:
 				pass
 			ser.write(b)
 			current_hshk = not current_hshk
