@@ -44,11 +44,26 @@ Check the settings match your environment by opening the settings file in a text
 
 N.B: "handshake" can be one of "cts" or "dsr", depending on how your serial device is wired. If in doubt, try both.
 
-Create the storage directory:  
+Create the DEFAULT storage directory:  
 `mkdir -p storage/DEFAULT`
 
-You can now create new directories within `storage/DEFAULT` containing files and their corresponding `.inf` where available, or `.ssd` disc images. See [Supported APIS](#supported-apis) for info on switching between them.
+## Adding Files
 
+With the server configured, you can now add the files you wish to make available over serial. The `DEFAULT` directory is mounted by default, but you can create other directories or place `.ssd` floppy images within the `storage/` directory. On the BBC, you can view the available directories and images with  `*DCAT` and select one with `*DIN`.
+
+Remember to include the `.inf` files where available so things like the load address are preserved.
+
+An example layout might look something like:  
+
+    ├── storage
+        ├── chuckie.ssd
+        ├── DEFAULT
+        │   ├── BASIC
+        │   ├── BASIC.inf
+        │   └── DOCUMENT
+        └── ROMS
+            ├── ADFS130
+            └── DFS120
 
 ## Running SerialFS
 
@@ -122,7 +137,7 @@ following APIs are currently supported:
 | *DIN | | Selects a directory or .ssd image |
 | *DRIVE | | Switches drives, currently only supports 0 for DEFAULT |
 
-This is enough to cover most simple usage.  The next tranche
+This is enough to cover most simple usage. The next tranche
 that are probably worth implementing are probably DIR, and 
 sequential file access (BGET, BPUT).  It's a deep rabbit hole though.
 
