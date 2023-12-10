@@ -1,3 +1,4 @@
+
 # ROMless Serial Filing System for the BBC Micro
 
 This is a remote filing system server for the BBC Micro that
@@ -43,8 +44,26 @@ Check the settings match your environment by opening the settings file in a text
 
 N.B: "handshake" can be one of "cts" or "dsr", depending on how your serial device is wired. If in doubt, try both.
 
-Create the storage directory:  
+Create the DEFAULT storage directory:  
 `mkdir -p storage/DEFAULT`
+
+## Adding Files
+
+With the server configured, you can now add the files you wish to make available over serial. The `DEFAULT` directory is mounted by default, but you can create other directories or place `.ssd` floppy images within the `storage/` directory. On the BBC, you can view the available directories and images with  `*DCAT` and select one with `*DIN`.
+
+Remember to include the `.inf` files where available so things like the load address are preserved.
+
+An example layout might look something like:  
+
+    ├── storage
+        ├── chuckie.ssd
+        ├── DEFAULT
+        │   ├── BASIC
+        │   ├── BASIC.inf
+        │   └── DOCUMENT
+        └── ROMS
+            ├── ADFS130
+            └── DFS120
 
 ## Running SerialFS
 
@@ -107,16 +126,20 @@ at E00 and avoid page A, and this runs well too.
 Aside from the "\*S" command to select the filing system, the
 following APIs are currently supported:
 
-* OSFILE &FF (load)
-* OSFILE &00 (save)
-* OSFILE &05 (read attrs)
-* FSCV 2,3,4 (variants of \*RUN)
-* FSCV 5 (\*CAT)
+| Command | FS Call | Notes |
+|--|--|--|
+| LOAD  | `&FF` ||
+| SAVE  | `&00` ||
+| SAVE  | `&00` ||
+| *RUN | `FSCV 2,3,4` | Variants of *RUN|
+| *CAT | `FSCV 5` | |
+| *DCAT | | Lists available directories and .ssd images |
+| *DIN | | Selects a directory or .ssd image |
+| *DRIVE | | Switches drives, currently only supports 0 for DEFAULT |
 
-This is enough to cover most simple usage.  The next tranche
-that are probably worth implementing are probably DELETE, INFO,
-and maybe DIR, and sequential file access (BGET, BPUT).  It's a
-deep rabbit hole though.
+This is enough to cover most simple usage. The next tranche
+that are probably worth implementing are probably DIR, and 
+sequential file access (BGET, BPUT).  It's a deep rabbit hole though.
 
 ## How it works
 
